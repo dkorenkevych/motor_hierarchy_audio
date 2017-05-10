@@ -31,7 +31,7 @@ class DB_Gui:
         left_side = Frame(self.master)
         left_side.grid(row=0, column=0, sticky=S+N+W+E)
         self.scales = []
-        for i in range(2):
+        for i in range(5):
             w = Scale(left_side, from_=0, to=100, resolution=-1, command=self.updateValue)
             w.pack()
             w.set(0)
@@ -55,19 +55,19 @@ class DB_Gui:
     def create_model(self):
 
         weight_reg = 1e-7
-        temporal_seq_length1 = 100
+        temporal_seq_length1 = 50
         temporal_seq_length2 = 8
         temporal_seq_length3 = 10
-        temp_data_length = 100
+        temp_data_length = 50
         input = Input((temp_data_length, 2))
-        decoder_input = Input(batch_shape=(1, 1, encoded_dim))
+        decoder_input = Input(batch_shape=(1, 1, self.encoded_dim))
 
 
         shared_layer1 = LSTM(output_dim=50, return_sequences=True, stateful=True, activation='tanh',
                              bias_regularizer=rgl.l2(weight_reg),
                              kernel_regularizer=rgl.l2(weight_reg), recurrent_regularizer=rgl.l2(weight_reg))
 
-        shared_layer2 = TimeDistributed(Dense(output_dim=2, activation='linear', bias_regularizer=rgl.l2(weight_reg),
+        shared_layer2 = TimeDistributed(Dense(output_dim=8, activation='linear', bias_regularizer=rgl.l2(weight_reg),
                                               kernel_regularizer=rgl.l2(weight_reg)))
 
         shared_layer3 = LSTM(output_dim=100, return_sequences=True, stateful=True, activation='tanh',
@@ -95,11 +95,12 @@ class DB_Gui:
         self.decoder.load_weights("decoder.json")
 
     def update_plot(self):
-        data = np.zeros((1, 2))
-        for i in range(2):
-            data[0, i] = self.scales[i].get()/50.0 - 1
+        data = np.zeros((1, self.encoded_dim))
+        for i in range(self.encoded_dim):
+            data[0, i] = self.scales[i].get()/50 - 1
+        data = np.array([[-0.00882923, 0.33190513, 0.00517559, 0.47989222, -0.03385946]])
         #print data
-        output = self.decoder.predict(data.reshape(1, 1, 2))
+        output = self.decoder.predict(data.reshape(1, 1, self.encoded_dim))
         self.sequence_so_far1.append(output[0, 0, 0])
         self.sequence_so_far2.append(output[0, 0, 1])
         # self.f.clear()
@@ -113,9 +114,19 @@ class DB_Gui:
     def draw_curve(self):
         self.update_plot()
         self.f.clear()
-        self.a = self.f.add_subplot(111)
-        self.a.plot(self.sequence_so_far1)
-        self.a.plot(self.sequence_so_far2)
+        self.a = self.f.add_subplot(211)
+        self.a.plot(self.sequence_so_far1[-300:])
+        #self.a.plot(self.sequence_so_far2[-300:])
+        if len(self.sequence_so_far1) < 100:
+            self.a.set_xlim([1, 100])
+            self.a.set_ylim([0, 1])
+
+        self.a1 = self.f.add_subplot(212)
+        #self.a1.plot(self.sequence_so_far1[-300:])
+        self.a1.plot(self.sequence_so_far2[-300:])
+        if len(self.sequence_so_far2) < 100:
+            self.a1.set_xlim([1, 100])
+            self.a1.set_ylim([0, 1])
         self.plot_area.show()
         #time.sleep(0.2)
         root.after(200, lambda: self.draw_curve())
@@ -123,7 +134,7 @@ class DB_Gui:
 
 if __name__ == "__main__":
     temporal_seq_length = 50
-    encoded_dim = 2
+    encoded_dim = 5
     root = Tk()
     root.title('GYM results database')
     gui = DB_Gui(root, temporal_seq_length, encoded_dim)
