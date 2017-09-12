@@ -5,6 +5,7 @@ from keras.layers.wrappers import TimeDistributed
 from keras.models import Model, model_from_json
 from keras.optimizers import Adam
 from keras import regularizers as rgl
+from scipy.signal import resample
 import os
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2TkAgg
@@ -55,13 +56,11 @@ def slicer_output_shape(input_shape):
 def build_model():
     temporal_seq_length1 = 4
     temporal_seq_length2 = 5
-    temporal_seq_length3 = 6
-    temp_data_length = 6000
+    temporal_seq_length3 = 8
     encoded_dim = 10
-    num_filters = 8
     weight_reg = 1e-8
 
-    input = Input((120, 50))
+    input = Input((160, 50))
     decoder_input = Input((encoded_dim,))
     layer2_input = Input((5, 50))
 
@@ -120,41 +119,47 @@ def build_model():
     decoder_model = Model(input=[decoder_input], output=decoder)
     encoder_model = Model(input=[input], output=[encoded])
     model.compile(optimizer=Adam(lr=1e-3, clipnorm=1.0), loss='mse')
-
-    for i in range(3700):
-        r = np.random.randint(20)
-        r = 0
-        train_data = data
-        noisy_data = train_data + np.random.normal(scale=0.005, size=train_data.shape)
-        # plt.figure()
-        # plt.plot(noisy_data[:, :, 0].T)
-        # plt.show()
-        result = model.train_on_batch(noisy_data.reshape((3, 120, 50)), train_data.reshape(3, 120, 50))
-        print i, result
-
-    # model.load_weights("model_words1.json")
-    model.save_weights("model_words.json", overwrite=True)
-    decoder_model.save_weights("decoder_words.json", overwrite=True)
     return model, encoder_model, decoder_model
 
 if __name__ == "__main__":
     #data = create_sine_data()
-    data1 = np.expand_dims(scw.read("monday.wav")[1][:6000, :1], axis=0)
-    data2 = np.expand_dims(scw.read("tuesday.wav")[1][:6000, :1], axis=0)
-    data3 = np.expand_dims(scw.read("wednesday.wav")[1][:6000, :1], axis=0)
-    data = np.concatenate([data1, data2, data3], axis=0)
+    dirname = "olivia/"
+    files = sorted(listdir(dirname), key = lambda x: int(x[7:-4]))
+    data_list = []
+    temp_data_length = 8000
+    for file in files:
+        data = scw.read(os.path.join(dirname, file))[1]
+        data_resampled = resample(data, len(data)/6)
+        data_resampled /= np.iinfo(np.int16).max + 0.0
+        data_list.append(data_resampled)
+    data = np.concatenate(data_list)
+    data = np.expand_dims(data, axis=0)
     np.random.seed(458965894)
-
     model, encoder_model, decoder_model = build_model()
+
+
+    for i in range(3700):
+        r = np.random.randint(data.shape[1]/temp_data_length)
+        train_data = data[:, r:r + temp_data_length]
+        #noisy_data = train_data + np.random.normal(scale=0.005, size=train_data.shape)
+        # plt.figure()
+        # plt.plot(noisy_data[:, :, 0].T)
+        # plt.show()
+        result = model.train_on_batch(train_data.reshape((1, 160, 50)), train_data.reshape(1, 160, 50))
+        print i, result
+    # model.load_weights("model_words1.json")
+    model.save_weights("model_words.json", overwrite=True)
+    decoder_model.save_weights("decoder_words.json", overwrite=True)
+
     colors = ['r', 'g', 'b', 'y']
     plt.figure(figsize=(20, 12))
     for i in range(3):
-        encoded = data[i:i+1, :].reshape((1, 120, 50))
+        encoded = data[i:i+1, :temp_data_length].reshape((1, 160, 50))
         #print "encoded", encoded
         encoded = encoder_model.predict(encoded)
         print "encoded", encoded
-        predictions = decoder_model.predict(encoded).reshape((1, 6000, 1))
-        scw.write("predicted_day_sound%s.wav"%(i), 8000, predictions[0, :, 0])
+        predictions = decoder_model.predict(encoded).reshape((1, temp_data_length, 1))
+        scw.write("predicted_day_sound%s.wav"%(i), temp_data_length, predictions[0, :, 0])
         #layer1_prediction = layer1_model.predict(encoded)
         #layer2_prediction = layer2_model.predict(layer1_prediction)
         #print "error", np.mean((data[i:i+1, :temp_data_length, :] - predictions[0, :])**2)
