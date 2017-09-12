@@ -32,20 +32,50 @@ class DB_Gui:
 
 
     def initialize(self):
+        self.start = time.time()
         self.master.pack()
         left_side = Frame(self.master)
         left_side.grid(row=0, column=0, sticky=S+N+W+E)
-        self.scales = []
+        self.scales1 = []
+        self.scales2 = []
+        self.scales3 = []
         for i in range(2):
-            w = Scale(left_side, from_=0, to=100, resolution=-1, command=self.updateValue)
+            w = Scale(left_side, from_=-100, to=100, resolution=-1, command=self.updateValue1)
+            w.pack()
+            w.set(100)
+            self.scales1.append(w)
+        next_to_left_side = Frame(self.master)
+        next_to_left_side.grid(row=0, column=1, sticky=S + N + W + E)
+        self.scales = []
+        for i in range(10):
+            w = Scale(next_to_left_side, from_=-100, to=100, resolution=-1, command=self.updateValue2)
             w.pack()
             w.set(0)
-            self.scales.append(w)
+            self.scales2.append(w)
+
+        mid_side = Frame(self.master)
+        mid_side.grid(row=0, column=2, sticky=S + N + W + E)
+        self.scales = []
+        for i in range(10):
+            w = Scale(mid_side, from_=-100, to=100, resolution=-1, command=self.updateValue3)
+            w.pack()
+            w.set(0)
+            self.scales3.append(w)
+
+        # right_side = Frame(self.master)
+        # right_side.grid(row=0, column=3, sticky=S + N + W + E)
+        # self.scales = []
+        # for i in range(10):
+        #     w = Scale(right_side, from_=-100, to=100, resolution=-1, command=self.updateValue)
+        #     w.pack()
+        #     w.set(0)
+        #     self.scales.append(w)
+
         #self.scales[0].set(0)
         #self.scales[1].set(0)
         right_side = Frame(self.master)
-        right_side.grid(row=0, column=1, sticky=S + N + W + E)
-        self.f = Figure(figsize=(5, 4), dpi=100)
+        right_side.grid(row=0, column=4, sticky=S + N + W + E)
+        self.f = Figure(figsize=(14, 10), dpi=100)
         self.plot_area = FigureCanvasTkAgg(self.f, right_side)
         self.plot_area.get_tk_widget().grid(column=0, row=0, sticky=W + E + N + S)
         tool_frame = Frame(right_side)
@@ -69,16 +99,16 @@ class DB_Gui:
 
         decoder_input = Input(batch_shape=(1, 1, encoded_dim))
 
-        shared_layer1 = LSTM(output_dim=50, return_sequences=True, activation='tanh', stateful=True,
+        shared_layer1 = LSTM(output_dim=10, return_sequences=True, activation='tanh', stateful=True,
                              bias_regularizer=rgl.l2(weight_reg),
                              kernel_regularizer=rgl.l2(weight_reg), recurrent_regularizer=rgl.l2(weight_reg))
 
         shared_layer3 =\
-            LSTM(output_dim=100, return_sequences=True, stateful=False, activation='tanh', bias_regularizer=rgl.l2(weight_reg),
+            LSTM(output_dim=10, return_sequences=True, stateful=True, activation='tanh', bias_regularizer=rgl.l2(weight_reg),
                  kernel_regularizer=rgl.l2(weight_reg), recurrent_regularizer=rgl.l2(weight_reg))
 
         shared_layer4 =\
-            LSTM(output_dim=500, return_sequences=True, activation='tanh', stateful=True, bias_regularizer=rgl.l2(weight_reg),
+            LSTM(output_dim=10, return_sequences=True, activation='tanh', stateful=True, bias_regularizer=rgl.l2(weight_reg),
                  kernel_regularizer=rgl.l2(weight_reg), recurrent_regularizer=rgl.l2(weight_reg))
 
         shared_layer2 = TimeDistributed(Dense(output_dim=2, activation='linear', bias_regularizer=rgl.l2(weight_reg),
@@ -102,14 +132,14 @@ class DB_Gui:
 
 
 
-        layer1 = LSTM(output_dim=50, return_sequences=True, activation='tanh', stateful=True,
+        layer1 = LSTM(output_dim=10, return_sequences=True, activation='tanh', stateful=True,
                              bias_regularizer=rgl.l2(weight_reg),
                              kernel_regularizer=rgl.l2(weight_reg), recurrent_regularizer=rgl.l2(weight_reg))
 
-        layer2 = LSTM(output_dim=100, return_sequences=True, stateful=True, activation='tanh', bias_regularizer=rgl.l2(weight_reg),
+        layer2 = LSTM(output_dim=10, return_sequences=True, stateful=True, activation='tanh', bias_regularizer=rgl.l2(weight_reg),
                  kernel_regularizer=rgl.l2(weight_reg), recurrent_regularizer=rgl.l2(weight_reg))
 
-        layer3 = LSTM(output_dim=500, return_sequences=True, activation='tanh', stateful=True, bias_regularizer=rgl.l2(weight_reg),
+        layer3 = LSTM(output_dim=10, return_sequences=True, activation='tanh', stateful=True, bias_regularizer=rgl.l2(weight_reg),
                  kernel_regularizer=rgl.l2(weight_reg), recurrent_regularizer=rgl.l2(weight_reg))
 
         layer4 = TimeDistributed(Dense(output_dim=2, activation='linear', bias_regularizer=rgl.l2(weight_reg),
@@ -120,8 +150,8 @@ class DB_Gui:
 
         layer1_input = Input(batch_shape=(1, 1, encoded_dim))
         # layer1_output = shared_layer1(layer1_input)
-        layer2_input = Input(batch_shape=(1, 1, 50))
-        layer3_input = Input(batch_shape=(1, 1, 100))
+        layer2_input = Input(batch_shape=(1, 1, 10))
+        layer3_input = Input(batch_shape=(1, 1, 10))
         self.layer1_model = Model(input=[layer1_input], outputs=[layer1(layer1_input)])
         self.layer2_model = Model(input=[layer2_input], outputs=[layer2(layer2_input)])
         self.layer1_model.layers[1]
@@ -137,7 +167,7 @@ class DB_Gui:
     def update_plot(self, update=False):
         data = np.zeros((1, 2))
         for i in range(2):
-            data[0, i] = self.scales[i].get()/50.0 - 1
+            data[0, i] = self.scales1[i].get()/100
         #data[0, 0] = 0
         #data[0, 0] = 1
         #data = np.array([[ 0.52797633,  0.99263579]])
@@ -145,10 +175,12 @@ class DB_Gui:
         if update or self.layer1_ind == 0:
             self.old_states1 = [state.get_value() for state in self.layer1_model.layers[1].states]
             self.layer1_output = self.layer1_model.predict([data.reshape(1, 1, 2)])
+            self.synchronize_scales(self.scales2, self.layer1_output)
             self.layer1_ind += 1
         if update or self.layer2_ind == 0:
             self.old_states2 = [state.get_value() for state in self.layer2_model.layers[1].states]
             self.layer2_output = self.layer2_model.predict([self.layer1_output])
+            self.synchronize_scales(self.scales3, self.layer2_output)
             self.layer2_ind += 1
 
         self.layer3_output = self.layer3_model.predict([self.layer2_output])
@@ -158,6 +190,7 @@ class DB_Gui:
             self.layer3_model.reset_states()
             self.old_states2 = [state.get_value() for state in self.layer2_model.layers[1].states]
             self.layer2_output = self.layer2_model.predict([self.layer1_output])
+            self.synchronize_scales(self.scales3, self.layer2_output)
             self.layer2_ind += 1
         if self.layer2_ind > 8:
             self.layer2_model.reset_states()
@@ -165,6 +198,7 @@ class DB_Gui:
             self.layer2_ind  = 0
             self.old_states1 = [state.get_value() for state in self.layer1_model.layers[1].states]
             self.layer1_output = self.layer1_model.predict([data.reshape(1, 1, 2)])
+            self.synchronize_scales(self.scales2, self.layer1_output)
             self.layer1_ind += 1
 
         if self.layer1_ind > 5:
@@ -180,31 +214,71 @@ class DB_Gui:
         # self.a.plot(output[0, :, 0])
         # self.plot_area.show()
 
-    def updateValue(self, event):
+    def updateValue1(self, event):
+
         data = np.zeros((1, 2))
         for i in range(2):
-            data[0, i] = self.scales[i].get() / 50.0 - 1
-        #data = np.array([[0.52797633, 0.99263579]])
+            data[0, i] = self.scales1[i].get() / 100.0
+        #data = np.array([[1.0, 1.0]])
         self.layer1_model.layers[1].reset_states(self.old_states1)
         self.layer1_output = self.layer1_model.predict([data.reshape(1, 1, 2)])
         self.layer2_model.layers[1].reset_states(self.old_states2)
         self.layer2_output = self.layer2_model.predict([self.layer1_output])
+        self.synchronize_scales(self.scales2, self.layer1_output)
+        self.synchronize_scales(self.scales3, self.layer2_output)
+        pass
 
+    def updateValue2(self, event):
+        data = np.zeros((1, 10))
+        for i in range(10):
+            data[0, i] = self.scales2[i].get() / 100.0
+        #data = np.array([[1.0, 1.0]])
+        #self.layer1_model.layers[1].reset_states(self.old_states1)
+        #self.layer1_output = self.layer1_model.predict([data.reshape(1, 1, 2)])
+        self.layer1_output = data.reshape(1, 1, 10)
+        #self.layer2_model.layers[1].reset_states(self.old_states2)
+        #self.layer2_output = self.layer2_model.predict([self.layer1_output])
+        #self.synchronize_scales(self.scales3, self.layer2_output)
+        pass
+
+    def updateValue3(self, event):
+        data = np.zeros((1, 10))
+        for i in range(10):
+            data[0, i] = self.scales3[i].get() / 100.0
+        #data = np.array([[1.0, 1.0]])
+        # self.layer1_model.layers[1].reset_states(self.old_states1)
+        # self.layer1_output = self.layer1_model.predict([data.reshape(1, 1, 2)])
+        # self.synchronize_scales(self.scales2, self.layer1_output)
+        # self.layer2_model.layers[1].reset_states(self.old_states2)
+        # self.layer2_output = self.layer2_model.predict([self.layer1_output])
+        self.layer2_output = data.reshape(1, 1, 10)
         pass
 
     def draw_curve(self):
         self.update_plot()
         self.f.clear()
-        self.a = self.f.add_subplot(111)
-        self.a.plot(self.sequence_so_far1[-400:])
-        self.a.plot(self.sequence_so_far2[-400:])
+        self.a = self.f.add_subplot(211)
+        self.a.plot(self.sequence_so_far1[-200:])
+        if len(self.sequence_so_far1) < 200:
+            self.a.set_xlim([0, 200])
+        self.a.set_ylim([np.minimum(-1.5, np.min(self.sequence_so_far1[-200:])), np.maximum(1.5, np.max(self.sequence_so_far1[-200:]))])
+        self.b = self.f.add_subplot(212)
+        self.b.plot(self.sequence_so_far2[-200:])
+        if len(self.sequence_so_far1) < 200:
+            self.b.set_xlim([0, 200])
+        self.b.set_ylim([np.minimum(-1.5, np.min(self.sequence_so_far2[-200:])),
+                             np.maximum(1.5, np.max(self.sequence_so_far2[-200:]))])
+
         self.plot_area.show()
         #time.sleep(0.2)
         root.after(50, lambda: self.draw_curve())
 
+    def synchronize_scales(self, scales, values):
+        for i in range(len(scales)):
+            scales[i].set(int(values[0, 0, i]*100))
 
 if __name__ == "__main__":
-    temporal_seq_length = 50
+    temporal_seq_length = 400
     encoded_dim = 2
     root = Tk()
     root.title('GYM results database')
